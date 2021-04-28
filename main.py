@@ -1,6 +1,6 @@
 import captcha
 from starlette.responses import StreamingResponse
-from captcha import get_last, init, run
+from captcha import get_last, init, run, show_img
 from fastapi import FastAPI,Response
 from fastapi.responses import FileResponse
 
@@ -28,7 +28,7 @@ captcha_prop = None
 font_prop = None
 
 fonts_dir="cyr_fonts"
-
+name = "captcha.png"
 captcha_file_path = None
 image_size = (1000,1000)
 font_size_limit = (70, 100)
@@ -62,21 +62,19 @@ def init_captcha(fonts_dir='cyr_fonts', use_db=False, captcha_texts='Глупы�
 @app.post("/captcha_show")
 async def captcha():
     init()
-    im, captcha_prop, font_prop = captcha.show_img()
+    im, captcha_prop, font_prop = show_img()
     print(captcha_prop, font_prop)
-    return FileResponse("image1.png")
+    return FileResponse(name)
 
 @app.post("/captcha")
 async def captcha():
     init()
     im, captcha_prop, font_prop = run()
 
-    return FileResponse("image1.png")
+    return FileResponse(name)
 
 @app.post("/captcha_prop")
 async def captcha():
-    # init()
-    # im, captcha_prop, font_prop = run()
     captcha_prop, font_prop, im = get_last()
     return {'propertis captcha': [*captcha_prop], 'propertis fonts': [*font_prop] }
 

@@ -1,8 +1,5 @@
-
-# import database
-# from crud import create_config, get_config, get_config_last
+import click
 import uuid
-import PIL
 import os, math
 from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps, ImageColor
@@ -61,7 +58,7 @@ def get_all_fonts(fonts_dir="cyr_fonts"):
             fonts.append(os.path.join(dirpath, filename))
     return fonts    
 
-def create_base_image(name='base.jpg', opacity=255, save=False, imgsize=(250, 250), mode='RGB', inner_сolor = [80, 80, 255], outer_сolor = [0, 0, 80]):
+def create_base_image(name='base.jpg', opacity=255, save=False, imgsize=(250, 250), mode='RGB', inner_сolor=[80, 80, 255], outer_сolor=[0, 0, 80]):
     '''
     Это будет код для круглого градиента:
     Для каждого пикселя он устанавливает значения красного, зеленого и синего где-то между innerColor и outerColor в зависимости от расстояния от пикселя до центра.
@@ -77,15 +74,15 @@ def create_base_image(name='base.jpg', opacity=255, save=False, imgsize=(250, 25
         for x in range(imgsize[0]):
 
             #Find the distance to the center
-            distanceToCenter = math.sqrt((x - imgsize[0]/2) ** 2 + (y - imgsize[1]/2) ** 2)
+            distance_to_center = math.sqrt((x - imgsize[0]/2) ** 2 + (y - imgsize[1]/2) ** 2)
 
             #Make it on a scale from 0 to 1
-            distanceToCenter = float(distanceToCenter) / (math.sqrt(2) * imgsize[0]/2)
+            distance_to_center = float(distance_to_center) / (math.sqrt(2) * imgsize[0]/2)
 
             #Calculate r, g, and b values
-            r = outer_сolor[0] * distanceToCenter + inner_сolor[0] * (1 - distanceToCenter)
-            g = outer_сolor[1] * distanceToCenter + inner_сolor[1] * (1 - distanceToCenter)
-            b = outer_сolor[2] * distanceToCenter + inner_сolor[2] * (1 - distanceToCenter)
+            r = outer_сolor[0] * distance_to_center + inner_сolor[0] * (1 - distance_to_center)
+            g = outer_сolor[1] * distance_to_center + inner_сolor[1] * (1 - distance_to_center)
+            b = outer_сolor[2] * distance_to_center + inner_сolor[2] * (1 - distance_to_center)
 
 
             #Place the pixel        
@@ -138,7 +135,7 @@ def normalize(alpha, value=0.25):
 
 
     # {'s_back':s_back, 'v_back':v_back, 's_font':s_font, 'v_font':v_font}
-def gen_captcha(save=True, use_db=False, conf={'type':'last'}, fonts=fonts, captcha_texts=captcha_texts, words=4, offsets=offsets, hsv=hsv, image_size=image_size, font_size_limit=font_size_limit ):    
+def gen_captcha(save=True, name='captcha.png', use_db=False, conf={'type':'last'}, fonts=fonts, captcha_texts=captcha_texts, words=4, offsets=offsets, hsv=hsv, image_size=image_size, font_size_limit=font_size_limit ):    
     """
     генератор капчи
 
@@ -167,10 +164,6 @@ def gen_captcha(save=True, use_db=False, conf={'type':'last'}, fonts=fonts, capt
         if conf['type'] == 'last':
             config = crud.get_config_last(database.db)
     
-    # fone = ImageColor.getrgb('white')
-    # text_c = (0,0,0,255)
-    # im = Image.new('RGB', (im_w, im_h), color=fone) 
-    # gr_color1 = random_color()
     font_path = fonts[random.randint(0,len(fonts))]
     font_size = random.randint(*font_size_limit)
     font = ImageFont.truetype(font_path, font_size)
@@ -179,19 +172,13 @@ def gen_captcha(save=True, use_db=False, conf={'type':'last'}, fonts=fonts, capt
     uu = uuid.uuid4()
 
     gr_color1 = hsv2rgb(random_color_hue(hsv['s_back'], hsv['v_back']))
-    # gr_color1
     gr_color2 = hsv2rgb(random_color_hue(hsv['s_back'], hsv['v_back']))
     im = create_base_image(imgsize=image_size, inner_сolor=gr_color1, outer_сolor=gr_color2)
     song_list = some_text(captcha_texts)
-    # song_list
     texts = get_three_words(song_list, words)
-    # print(texts)
-    draw1 = ImageDraw.Draw(im)
-    # draw1.text((0, 0), text='astramariy cerevbor crush', font=font, fill=random_color_hue(s_font, v_font))
     i = 3
     j = 0
     for text in texts:
-        # i=1
         for t in text:
             image2 = Image.new('RGBA', (width, height), (255, 255, 255, 0))
             draw2 = ImageDraw.Draw(image2)
@@ -199,21 +186,14 @@ def gen_captcha(save=True, use_db=False, conf={'type':'last'}, fonts=fonts, capt
             draw2.text((0, 0), text=t, font=font, fill=font_color)
             alpha = 3*i
             image2 = image2.rotate(alpha, expand=1)
-            # divided_width = 1.5
-            # divided_height = (normalize(alpha))*4
-            # divided_by = 9
-            # px, py = int( im_w * sin(alpha*pi/180)/divided_width)-1, int(im_h * cos(alpha*pi/180)/divided_height)-200
             px = int(image_size[0] * sin(alpha*pi/180)) - offsets['x_offset'] 
             py = int(image_size[1] * cos(alpha*pi/180)) - offsets['y_offset']
-            # px, py = width, height
             sx, sy = image2.size
-            # sx =sx//2
-            sy =sy
             im.paste(image2, (px, py + j * offsets['offset'], px + sx, py + j * offsets['offset'] + sy), image2)
             i += 1
         j += 1
     if save:
-        im.save('image1.png')
+        im.save(name)
     else:
         im.show()
     save_last((texts, uu), (font_path, font_size), im)
@@ -248,7 +228,7 @@ def init(fonts_dir='cyr_fonts', use_db=False, captcha_texts=captcha_texts, captc
     
     if use_db:
         import crud
-        conf = crud.create_config(offsets, hsv, image_size, fonts_dir, captcha_texts, captcha_file_path, font_size_limit)
+        config = crud.create_config(offsets, hsv, image_size, fonts_dir, captcha_texts, captcha_file_path, font_size_limit)
         
 
 def save_last(captcha_prop, font_prop, im):
@@ -262,15 +242,18 @@ def get_last():
     im = globals()['im'] 
     return captcha_prop, font_prop, im
     
-
-def show_img(use_db=False, fonts=fonts, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
-    y_off, x_off, gen_off = offsets['y_offset'], offsets['x_offset'], offsets['offset']
-    offsets0 = {'y_offset': 400, 'x_offset': x_off, 'offset': gen_off}
-    if len(fonts) == 0:
-        fonts = get_all_fonts(fonts_dir)
-    # print('fonts= ', fonts)
-    im, captcha_prop, font_prop = gen_captcha(save=False, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets0 )
+@click.command()
+@click.option('--name', '-n', default="captcha.png", help='Путь сохранения капчи')
+@click.option('--fonts_dir', '-f', default=fonts_dir, prompt='Укажите место расположения шрифтов:\n', help='Путь где лежат шрифты')
+@click.option('--image_size', '-s', default=image_size, help='Размер картинки')
+@click.option('--hsv', '-s', default=hsv, help='Яркость и сатурация шрифтов и фона')
+@click.option('--offsets', '-s', default=offsets, help='Смещение капчи')
+@click.option('--captcha_texts', default='Над седой равниной моря', prompt='введите текст для генерирования капчи:\n', help='текст для генерирования капчи')
+def show_img(use_db=False, name='captcha.png', fonts_dir=fonts_dir, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
+    fonts = get_all_fonts(fonts_dir)
+    im, captcha_prop, font_prop = gen_captcha(save=False, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets )
     return im, captcha_prop, font_prop
+
 
 
 def run(use_db=False, fonts=fonts, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
@@ -279,10 +262,9 @@ def run(use_db=False, fonts=fonts, captcha_texts=captcha_texts, hsv=hsv, image_s
     if len(fonts) == 0:
         fonts = get_all_fonts(fonts_dir)
     im, captcha_prop, font_prop = gen_captcha(save=True, fonts=fonts, captcha_texts=captcha_texts, offsets=offsets0 )
-    # im, captcha_prop, font_prop = gen_captcha(save=True, fonts=fonts, captcha_texts=songs, words=4, offset = 100, s_back=s_back, x_offset=100, y_offset=500, v_back=v_back, s_font=s_font, v_font=v_font, im_w=im_w, im_h=im_h )
     return im, captcha_prop, font_prop
 
-init()
 
-show_img()
-im, captcha_prop, font_prop = gen_captcha(save=False, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets )
+if __name__=='__main__':
+    init()
+    show_img()

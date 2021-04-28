@@ -1,15 +1,19 @@
 
+# import database
+# from crud import create_config, get_config, get_config_last
 import uuid
 import PIL
 import os, math
 from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps, ImageColor
 from numpy import pi, random, sin, cos
+fonts_dir="cyr_fonts"
 
+use_db = False
 fonts = []
 captcha_file_path = None
 image_size = (1000,1000)
-font_size_limit = (70, 70)
+font_size_limit = (70, 100)
 offsets={'offset':100, 'x_offset':100, 'y_offset':500}
 hsv = {'s_back': (0.1, 0.3),
         'v_back': (0.1, 0.3),
@@ -46,9 +50,9 @@ def get_three_words(texts:list, words=3):
     return texts[rand:rand + words]
 
 
-def get_all_fonts(font_dir="cyr_fonts"):
+def get_all_fonts(fonts_dir="cyr_fonts"):
     fonts = []
-    for dirpath, dirnames, filenames in os.walk(font_dir):
+    for dirpath, dirnames, filenames in os.walk(fonts_dir):
         # перебрать каталоги
         # for dirname in dirnames:
             # print("Каталог:", os.path.join(dirpath, dirname))
@@ -134,7 +138,7 @@ def normalize(alpha, value=0.25):
 
 
     # {'s_back':s_back, 'v_back':v_back, 's_font':s_font, 'v_font':v_font}
-def gen_captcha(save=True, fonts=fonts, captcha_texts=captcha_texts, words=4, offsets=offsets, hsv=hsv, image_size=image_size, font_size_limit=font_size_limit ):    
+def gen_captcha(save=True, use_db=False, conf={'type':'last'}, fonts=fonts, captcha_texts=captcha_texts, words=4, offsets=offsets, hsv=hsv, image_size=image_size, font_size_limit=font_size_limit ):    
     """
     генератор капчи
 
@@ -157,7 +161,11 @@ def gen_captcha(save=True, fonts=fonts, captcha_texts=captcha_texts, words=4, of
     Returns:
         [type]: возвращает объект картинки, словарь параметров шрифта и словарь параметров капчи
     """    
-    
+ 
+    if use_db:
+        import crud, database
+        if conf['type'] == 'last':
+            config = crud.get_config_last(database.db)
     
     # fone = ImageColor.getrgb('white')
     # text_c = (0,0,0,255)
@@ -195,8 +203,8 @@ def gen_captcha(save=True, fonts=fonts, captcha_texts=captcha_texts, words=4, of
             # divided_height = (normalize(alpha))*4
             # divided_by = 9
             # px, py = int( im_w * sin(alpha*pi/180)/divided_width)-1, int(im_h * cos(alpha*pi/180)/divided_height)-200
-            px = int( im_w * sin(alpha*pi/180)) - offsets['x_offset'] 
-            py = int(im_h * cos(alpha*pi/180)) - offsets['y_offset']
+            px = int(image_size[0] * sin(alpha*pi/180)) - offsets['x_offset'] 
+            py = int(image_size[1] * cos(alpha*pi/180)) - offsets['y_offset']
             # px, py = width, height
             sx, sy = image2.size
             # sx =sx//2
@@ -209,13 +217,14 @@ def gen_captcha(save=True, fonts=fonts, captcha_texts=captcha_texts, words=4, of
     else:
         im.show()
     save_last((texts, uu), (font_path, font_size), im)
+    
     return (im, (texts, uu), (font_path, font_size))
 
-def init(fonts_dir='cyr_fonts', use_db=False, captcha_texts=None, captcha_file_path=None, offsets=offsets, hsv=hsv, image_size=image_size):
+def init(fonts_dir='cyr_fonts', use_db=False, captcha_texts=captcha_texts, captcha_file_path=None, offsets=offsets, hsv=hsv, image_size=image_size):
     """инициализатор
 
     Args:
-        font_dir (str, optional): папка со шрифтами. Defaults to 'cyr_fonts'.
+        fonts_dir (str, optional): папка со шрифтами. Defaults to 'cyr_fonts'.
         font_min (int, optional): минимальный размер шрифта. Defaults to 70.
         font_max (int, optional): максимальный размер шрифта. Defaults to 100.
         fonts ([type], optional): список имен(относительных путей к) шрифтов. Defaults to fonts.
@@ -229,20 +238,18 @@ def init(fonts_dir='cyr_fonts', use_db=False, captcha_texts=None, captcha_file_p
     """    
     if captcha_texts is not None:
         globals()['captcha_texts']  = captcha_texts
+    if captcha_file_path is not None:
+        globals()['captcha_file_path'] = captcha_file_path
         
     globals()['fonts']  = get_all_fonts(fonts_dir)
     globals()['image_size'] = image_size
     globals()['font_size_limit'] = font_size_limit
     globals()['hsv'] = hsv
-    globals()['captcha_file_path'] = captcha_file_path
     
     if use_db:
-        pass
-        import db_init
-        ini = db_init.CaptchaInit(offsets, hsv, image_size, fonts_dir, captcha_texts, captcha_file_path, font_size_limit)
-        db_init.db_session.add(ini)
-        db_init.db_session.commit()
-
+        import crud
+        conf = crud.create_config(offsets, hsv, image_size, fonts_dir, captcha_texts, captcha_file_path, font_size_limit)
+        
 
 def save_last(captcha_prop, font_prop, im):
     globals()['captcha_prop'] = captcha_prop
@@ -256,21 +263,26 @@ def get_last():
     return captcha_prop, font_prop, im
     
 
-def show_img():
+def show_img(use_db=False, fonts=fonts, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
     y_off, x_off, gen_off = offsets['y_offset'], offsets['x_offset'], offsets['offset']
-    ofssets0 = {'y_offset': 400, 'x_offset': x_off, 'offset': gen_off}
-    
-    im, captcha_prop, font_prop = gen_captcha(save=False, fonts=fonts, captcha_texts=captcha_texts, offsets=ofssets0 )
+    offsets0 = {'y_offset': 400, 'x_offset': x_off, 'offset': gen_off}
+    if len(fonts) == 0:
+        fonts = get_all_fonts(fonts_dir)
+    # print('fonts= ', fonts)
+    im, captcha_prop, font_prop = gen_captcha(save=False, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets0 )
     return im, captcha_prop, font_prop
 
 
-def run():
+def run(use_db=False, fonts=fonts, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
     y_off, x_off, gen_off = offsets['y_offset'], offsets['x_offset'], offsets['offset']
-    ofssets0 = {'y_offset': 400, 'x_offset': x_off, 'offset': gen_off}
-    
-    im, captcha_prop, font_prop = gen_captcha(save=True, fonts=fonts, captcha_texts=captcha_texts, offsets=ofssets0 )
+    offsets0 = {'y_offset': 400, 'x_offset': x_off, 'offset': gen_off}
+    if len(fonts) == 0:
+        fonts = get_all_fonts(fonts_dir)
+    im, captcha_prop, font_prop = gen_captcha(save=True, fonts=fonts, captcha_texts=captcha_texts, offsets=offsets0 )
     # im, captcha_prop, font_prop = gen_captcha(save=True, fonts=fonts, captcha_texts=songs, words=4, offset = 100, s_back=s_back, x_offset=100, y_offset=500, v_back=v_back, s_font=s_font, v_font=v_font, im_w=im_w, im_h=im_h )
     return im, captcha_prop, font_prop
 
 init()
-    
+
+show_img()
+im, captcha_prop, font_prop = gen_captcha(save=False, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets )

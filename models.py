@@ -1,45 +1,45 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
-from sqlalchemy.orm import relationship, backref
-from sqlalchemy.orm import scoped_session, sessionmaker
-from pydantic import BaseModel
-from typing import List, Optional
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
-engine = create_engine('sqlite:///:memory:', echo=True, connect_args={"check_same_thread": False})
-db_session = sessionmaker(autocommit=False,
-                            autoflush=False,
-                            bind=engine)
-Base = declarative_base()
-Base.query = db_session.query_property()
+from database import Base 
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 
-
-class ItemBase(BaseModel):
-    title: str
-    description: Optional[str] = None
-    captcha_uuid = Column(String, primary_key=True)
-    font_size = Column(Integer, nullable=False)
-    font_name = Column(String, nullable=False)
-    captcha_text = Column(String, nullable=False)
-    captcha_path = Column(String, nullable=False)
 
 class CaptchaTable(Base):
     __tablename__ = 'captcha'
     captcha_uuid = Column(String, primary_key=True)
     font_size = Column(Integer, nullable=False)
     font_name = Column(String, nullable=False)
-    captcha_text = Column(String, nullable=False)
-    captcha_path = Column(String, nullable=False)
+    text_id = Column(Integer, ForeignKey("Textcaptcha.id"))
+    was_used = Column(Integer, nullable=False)
+    text = relationship("Textcaptcha", back_populates="captchas")
 
-
-    def __init__(self, captcha_uuid, font_size, font_name, captcha_text, captcha_path):
+    def __init__(self, captcha_uuid, font_size, font_name, captcha_id):
         self.captcha_uuid = captcha_uuid
         self.font_size = font_size
         self.font_name = font_name
-        self.captcha_text = captcha_text
-        self.captcha_path = captcha_path
+        self.text_id = captcha_id
+        self.was_used = 0
 
     def __repr__(self):
-        return '<CAptcha %r>' % (self.captcha_text)
+        return '<captcha %r>' % (self.captcha_text)
+    
+
+class TextCaptcha(Base):
+    __tablename__ = 'captcha'
+    id = Column(String, primary_key=True, index=True)
+    captcha_text = Column(String, nullable=False)
+    captcha_path = Column(String, nullable=False)
+    description = Column(String)
+    captchas = relationship("CapthaTable", back_populates="text")
+
+    def __init__(self, captcha_text, captcha_path, description=None):
+        self.captcha_text = captcha_text
+        self.captcha_path = captcha_path
+        if description is not None:
+            self.description = description
+            
+
+    def __repr__(self):
+        return '<captcha %r>' % (self.captcha_text)
 
 class CaptchaInit(Base):
     __tablename__ = 'captcha_init'
@@ -60,6 +60,7 @@ class CaptchaInit(Base):
     im_w = Column(Integer, nullable=False)
     im_h = Column(Integer, nullable=False)
     fonts_dir = Column(String, nullable=False)
+    description = Column(String, nullable=False)
     captcha_texts = Column(String)
     captcha_file_path = Column(String)
     
@@ -83,14 +84,3 @@ class CaptchaInit(Base):
         self.fonts_dir = fonts_dir
         self.captcha_texts = captcha_texts
         self.captcha_file_path = captcha_file_path
-        
-
-def init_db():
-    # Здесь нужно импортировать все модули, где могут быть определены модели,
-    # которые необходимым образом могут зарегистрироваться в метаданных.
-    # В противном случае их нужно будет импортировать до вызова init_db()
-    Base.metadata.create_all(bind=engine)
-
-def shutdown_session(exception=None):
-    db_session.remove()
-    

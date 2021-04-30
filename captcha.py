@@ -159,10 +159,12 @@ def gen_captcha(save=True, name=captcha_name, use_db=False, conf={'type':'last'}
         [type]: возвращает объект картинки, словарь параметров шрифта и словарь параметров капчи
     """    
  
+    config = None
     if use_db:
-        import crud, database
+        import service_db
         if conf['type'] == 'last':
-            config = crud.get_config_last(database.db)
+            config = service_db.get_config_last()
+    print(config)
     
     font_path = fonts[random.randint(0,len(fonts))]
     font_size = random.randint(*font_size_limit)
@@ -200,7 +202,7 @@ def gen_captcha(save=True, name=captcha_name, use_db=False, conf={'type':'last'}
     
     return (im, (texts, uu), (font_path, font_size))
 
-def init(fonts_dir='cyr_fonts', use_db=False, captcha_texts=captcha_texts, captcha_file_path=None, offsets=offsets, hsv=hsv, image_size=image_size):
+def init(fonts_dir='cyr_fonts', use_db=False, captcha_texts=captcha_texts, captcha_file_path=None, offsets=offsets, hsv=hsv, image_size=image_size, font_size_limit=font_size_limit):
     """инициализатор
 
     Args:
@@ -227,8 +229,12 @@ def init(fonts_dir='cyr_fonts', use_db=False, captcha_texts=captcha_texts, captc
     globals()['hsv'] = hsv
     
     if use_db:
-        import crud
-        config = crud.create_config(offsets, hsv, image_size, fonts_dir, captcha_texts, captcha_file_path, font_size_limit)
+        import service_db
+        config = service_db.create_config(offsets, hsv, image_size, fonts_dir, captcha_texts, captcha_file_path, font_size_limit)
+        
+        print(config.id)
+        return config
+    return use_db
         
 
 def save_last(captcha_prop, font_prop, im):
@@ -244,6 +250,7 @@ def get_last():
     
 @click.command()
 @click.option('--name', '-n', default=captcha_name, help='Путь сохранения капчи')
+@click.option('--use_db', '-d', default=False, help='Использовать базу данных')
 @click.option('--fonts_dir', '-f', default=fonts_dir, prompt='Укажите место расположения шрифтов:\n', help='Путь где лежат шрифты')
 @click.option('--image_size', '-i', default=image_size, help='Размер картинки')
 @click.option('--save', '-s', default=False, help='Сохранять ли на диск')

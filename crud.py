@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import desc
 
-from . import models
+import models
 
 
 def get_captcha(db: Session, id: int):

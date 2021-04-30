@@ -4,25 +4,31 @@ from captcha import get_last, init, run, show_img
 from fastapi import FastAPI,Response
 from fastapi.responses import FileResponse
 
-if captcha.use_db:
-    from typing import List
+# use_db = True
+# from typing import List
 
-    from fastapi import Depends, FastAPI, HTTPException
-    from sqlalchemy.orm import Session
+# from fastapi import Depends, FastAPI, HTTPException
+# from sqlalchemy.orm import Session
 
-    from . import crud, models, schemas
-    from .database import SessionLocal, engine
+# import crud, models, schemas
+# from database import SessionLocal, engine
+
+# def get_db():
+
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
+
+# if captcha.use_db:
+#     get_db()
 
 app = FastAPI()
 
-if captcha.use_db:
-    def get_db():
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
+    
 
+    
 im = None
 captcha_prop = None
 font_prop = None
@@ -55,9 +61,13 @@ def init_captcha(fonts_dir='cyr_fonts', use_db=False, captcha_texts='Глупы�
         v_font ([type], optional): яркость шрифта из модели картинок hsv, значение - словарь от и до. Defaults to v_font.
         im_w ([type], optional): ширина шрифта. Defaults to im_w.
         im_h ([type], optional): высота шрифта. Defaults to im_h.
-    ''' 
-    _ = init()
-    return {'result': _ }
+    '''
+    # if use_db:
+    #     captcha.use_db = True 
+    # if captcha.use_db:
+    #     get_db()
+    res = init(use_db=use_db, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets)
+    return {'result': res }
 
 @app.post("/captcha_show")
 async def captcha():

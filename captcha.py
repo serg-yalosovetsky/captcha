@@ -5,7 +5,7 @@ from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps, ImageColor
 from numpy import pi, random, sin, cos
 fonts_dir="cyr_fonts"
-
+captcha_name = 'captcha.png'
 use_db = False
 fonts = []
 captcha_file_path = None
@@ -135,7 +135,7 @@ def normalize(alpha, value=0.25):
 
 
     # {'s_back':s_back, 'v_back':v_back, 's_font':s_font, 'v_font':v_font}
-def gen_captcha(save=True, name='captcha.png', use_db=False, conf={'type':'last'}, fonts=fonts, captcha_texts=captcha_texts, words=4, offsets=offsets, hsv=hsv, image_size=image_size, font_size_limit=font_size_limit ):    
+def gen_captcha(save=True, name=captcha_name, use_db=False, conf={'type':'last'}, fonts=fonts, captcha_texts=captcha_texts, words=4, offsets=offsets, hsv=hsv, image_size=image_size, font_size_limit=font_size_limit ):    
     """
     генератор капчи
 
@@ -243,19 +243,22 @@ def get_last():
     return captcha_prop, font_prop, im
     
 @click.command()
-@click.option('--name', '-n', default="captcha.png", help='Путь сохранения капчи')
+@click.option('--name', '-n', default=captcha_name, help='Путь сохранения капчи')
 @click.option('--fonts_dir', '-f', default=fonts_dir, prompt='Укажите место расположения шрифтов:\n', help='Путь где лежат шрифты')
 @click.option('--image_size', '-i', default=image_size, help='Размер картинки')
-@click.option('--save', '-s', default=True, help='Сохранять ли на диск')
+@click.option('--save', '-s', default=False, help='Сохранять ли на диск')
 @click.option('--hsv', '-h', default=hsv, help='Яркость и сатурация шрифтов и фона')
 @click.option('--offsets', '-o', default=offsets, help='Смещение капчи')
 @click.option('--captcha_texts', '-t', default='Над седой равниной моря', prompt='введите текст для генерирования капчи:\n', help='текст для генерирования капчи')
-def show_img(use_db=False, name='captcha.png', fonts_dir=fonts_dir, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
+def show_img(use_db=False, save=False, name=captcha_name, fonts_dir=fonts_dir, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
     fonts = get_all_fonts(fonts_dir)
-    im, captcha_prop, font_prop = gen_captcha(save=False, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets )
+    im, captcha_prop, font_prop = gen_captcha(save=save, use_db=use_db, name=name, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets )
     return im, captcha_prop, font_prop
 
-
+def show_img2(use_db=False, save=False, name=captcha_name, fonts_dir=fonts_dir, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
+    fonts = get_all_fonts(fonts_dir)
+    im, captcha_prop, font_prop = gen_captcha(save=save, use_db=use_db, name=name, fonts=fonts, hsv=hsv, image_size=image_size, captcha_texts=captcha_texts, offsets=offsets )
+    return im, captcha_prop, font_prop
 
 def run(use_db=False, fonts=fonts, captcha_texts=captcha_texts, hsv=hsv, image_size=image_size, offsets=offsets):
     y_off, x_off, gen_off = offsets['y_offset'], offsets['x_offset'], offsets['offset']
